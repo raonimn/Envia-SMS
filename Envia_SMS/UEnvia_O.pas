@@ -54,8 +54,6 @@ var
 implementation
 
 {$R *.fmx}
-{$R *.NmXhdpiPh.fmx ANDROID}
-{$R *.iPhone55in.fmx IOS}
 {$R *.LgXhdpiPh.fmx ANDROID}
 
 uses
@@ -65,15 +63,31 @@ function TEnvia_SMS.VerificaOperacao: string;
 var
   dAgora: string;
 begin
-  dAgora := FormatDateTime('dd/mm/yyyy', now);
-  if dAgora = '22/10/2017' then
-    Result := 'ENCEJA 2017'
-  else if (dAgora = '05/11/2017') or (dAgora = '12/11/2017') then
-    result := 'ENEM 2017'
-  else if (dAgora = '28/11/2017') then
-    result := 'ENADE 2017'
-  else if (dAgora = '12/12/2017') or (dAgora = '13/12/2017') then
-    Result := 'ENEM PPL 2017'
+
+  dAgora := FormatDateTime('yyyy/mm/dd', now);
+  {***** ENCCEJA *****}
+  if dAgora = '2018/08/05' then
+    Result := 'ENCCEJA 2018'
+
+  {***** ENEM *****}
+  else if (dAgora = '2018/11/04') or (dAgora = '2018/11/11') then
+    result := 'ENEM 2018'
+
+{***** ENADE *****}
+  else if (dAgora = '2018/11/25') then
+    result := 'ENADE 2018'
+
+{***** ENEM PPL *****}
+  else if (dAgora = '2018/12/11') or (dAgora = '2018/12/12') then
+    Result := 'ENEM PPL 2018'
+
+{***** ENCCEJA PPL *****}
+  else if (dAgora = '2018/09/18') or (dAgora = '2018/09/19') then
+    Result := 'ENCCEJA PPL 2018'
+
+{***** TESTE *****}
+  else if (dAgora = '2018/06/15') then
+    Result := 'MODO TESTE'
   else
     Result := '';
 
@@ -89,10 +103,19 @@ begin
   end
   else
   begin
-    GerenciadorSMS := TJSmsManager.JavaClass.getDefault;
-    GerenciadorSMS.sendTextMessage(StringToJString('28588'), nil, StringToJString(codigo + EMal.Text), nil, nil);
-    showmessage('Enviando a mensagem ' + codigo + emal.Text + ' para o número 28588...');
-    Emal.Text := '';
+    if (length(codigo) + Length(Emal.Text) = 13) then
+    begin
+
+      GerenciadorSMS := TJSmsManager.JavaClass.getDefault;
+      GerenciadorSMS.sendTextMessage(StringToJString('28588'), nil, StringToJString(codigo + EMal.Text), nil, nil);
+      showmessage('Enviando a mensagem ' + codigo + emal.Text + ' para o número 28588...');
+      Emal.Text := '';
+      Emsg.Text := '';
+    end
+    else
+    begin
+      showmessage('A mensagem não possui a quantidade correta de caracteres. Verifique o código do malote (apenas os números).' + Chr(13) + (codigo + Emal.Text));
+    end;
   end;
 end;
 
@@ -151,7 +174,7 @@ end;
 
 procedure TEnvia_SMS.FormActivate(Sender: TObject);
 begin
-  ClipService.SetClipboard('nil');
+  ClipService.SetClipboard('');
   lblOpera.Text := VerificaOperacao;
 end;
 
@@ -186,13 +209,24 @@ end;
 
 procedure TEnvia_SMS.Timer1Timer(Sender: TObject);
 begin
-  if (ClipService.GetClipboard.ToString <> 'nil') then
+  if (ClipService.GetClipboard.ToString <> '') then
   begin
     timer1.Enabled := false;
     Elapsed := 0;
     Malote := clipservice.GetClipboard.ToString;
-    if (copy(malote, 1, 2) = 'IP') or (copy(malote, 1, 2) = 'IK') then
-      Emal.Text := copy(malote, 3, 9)
+    if (Malote.Length = 13) then
+    begin
+
+      if (copy(malote, 1, 2) = 'IP') or (copy(malote, 1, 2) = 'IK') then
+        Emal.Text := copy(malote, 3, 9)
+    end
+    else if (Malote.Length = 19) then
+    begin
+
+      if (copy(malote, 7, 2) = 'IP') or (copy(malote, 7, 2) = 'IK') then
+        Emal.Text := copy(malote, 9, 9)
+    end;
+
   end
   else
   begin
