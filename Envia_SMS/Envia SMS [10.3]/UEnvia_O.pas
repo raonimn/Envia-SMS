@@ -40,6 +40,7 @@ type
     ClipService: IFMXClipboardService;
     Elapsed: integer;
     function VerificaOperacao: string;
+    function DigitoECT(Numero: string): string;
   public
     var
       dia, evento, mal: boolean;
@@ -58,6 +59,28 @@ implementation
 
 uses
   Androidapi.NativeActivity, Androidapi.Jni.Telephony;
+
+function TEnvia_SMS.DigitoECT(Numero: string): string;
+const
+  STR_CALC: string = '86423597';
+var
+  Soma, I, Resto: Integer;
+begin
+  result := '';
+  Soma := 0;
+  if Length(Numero) = 8 then
+  begin
+    for I := 0 to 7 do
+      Soma := Soma + StrToInt(Numero[I]) * StrToInt(STR_CALC[I]);
+    Resto := Soma mod 11;
+    if Resto = 0 then
+      result := '5'
+    else if Resto = 1 then
+      result := '0'
+    else
+      result := IntToStr(11 - Resto);
+  end;
+end;
 
 function TEnvia_SMS.VerificaOperacao: string;
 var
@@ -86,7 +109,7 @@ begin
     Result := 'ENCCEJA PPL 2018'
 
 {***** TESTE *****}
-  else if (dAgora = '2018/06/15') then
+  else if (dAgora = '2018/12/09') then
     Result := 'MODO TESTE'
   else
     Result := '';
@@ -106,15 +129,23 @@ begin
     if (length(codigo) + Length(Emal.Text) = 13) then
     begin
 
-      GerenciadorSMS := TJSmsManager.JavaClass.getDefault;
-      GerenciadorSMS.sendTextMessage(StringToJString('28588'), nil, StringToJString(codigo + EMal.Text), nil, nil);
-      showmessage('Enviando a mensagem ' + codigo + emal.Text + ' para o número 28588...');
-      Emal.Text := '';
-      Emsg.Text := '';
+      if (DigitoECT(copy(Emal.Text, 1, 8)) = Copy(Emal.Text, 9, 1)) then
+      begin
+
+        GerenciadorSMS := TJSmsManager.JavaClass.getDefault;
+        GerenciadorSMS.sendTextMessage(StringToJString('28588'), nil, StringToJString(codigo + EMal.Text), nil, nil);
+        showmessage('Enviando a mensagem ' + codigo + emal.Text + ' para o número 28588...');
+        Emal.Text := '';
+        Emsg.Text := '';
+      end
+      else
+      begin
+        showmessage('Há algo errado com o dígito verificador do código a ser enviado:' + Chr(13) + (codigo + Emal.Text));
+      end;
     end
     else
     begin
-      showmessage('A mensagem não possui a quantidade correta de caracteres. Verifique o código do malote (apenas os números).' + Chr(13) + (codigo + Emal.Text));
+      showmessage('Há algo errado com a quantidade de caracteres no código a ser enviado:' + Chr(13) + (codigo + Emal.Text));
     end;
   end;
 end;
