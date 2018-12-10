@@ -6,7 +6,7 @@ uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls,
   FMX.Edit, FMX.platform, fmx.helpers.android, androidapi.JNI.GraphicsContentViewText,
-  androidapi.jni.JavaTypes, FMX.Objects, FMX.Controls.Presentation, Androidapi.Helpers;
+  FMX.Objects, FMX.Controls.Presentation;
 
 type
   TEnvia_SMS = class(TForm)
@@ -41,9 +41,11 @@ type
     Elapsed: integer;
     function VerificaOperacao: string;
     function DigitoECT(Numero: string): string;
+    procedure verificaPermissao;
   public
     var
       dia, evento, mal: boolean;
+      Permissao: Boolean;
       var
       malote, codigo: string;
     { Public declarations }
@@ -54,11 +56,16 @@ var
 
 implementation
 
+uses
+  System.Permissions, System.Messaging,
+{$IFDEF ANDROID}
+  Androidapi.JniBridge, Androidapi.Jni.Widget, Androidapi.JNI.Os, Androidapi.JNI.JavaTypes,
+  Androidapi.Helpers, Androidapi.NativeActivity, Androidapi.Jni.Telephony,
+{$ENDIF}
+  FMX.DialogService;
+
 {$R *.fmx}
 {$R *.LgXhdpiPh.fmx ANDROID}
-
-uses
-  Androidapi.NativeActivity, Androidapi.Jni.Telephony;
 
 function TEnvia_SMS.DigitoECT(Numero: string): string;
 const
@@ -116,37 +123,78 @@ begin
 
 end;
 
+procedure Toast(const Msg: string; Duration: Integer);
+begin
+  CallInUiThread(
+    procedure
+    begin
+      TJToast.JavaClass.makeText(TAndroidHelper.Context, StrToJCharSequence(Msg), Duration).show
+    end);
+end;
+
+procedure TEnvia_SMS.verificaPermissao;
+begin
+  Permissao := false;
+{$IFDEF ANDROID}
+  PermissionsService.RequestPermissions([JStringToString(TJManifest_permission.JavaClass.SEND_SMS)],
+    procedure(const APermissions: TArray<string>; const AGrantResults: TArray<TPermissionStatus>)
+    begin
+      if (Length(AGrantResults) = 1) and (AGrantResults[0] = TPermissionStatus.Granted) then
+          { activate or deactivate the location sensor }
+      begin
+        Permissao := True
+
+      end
+      else
+      begin
+        Permissao := False;
+        Toast('Permissão negada!', TJToast.JavaClass.LENGTH_SHORT);
+
+      end;
+    end)
+{$ENDIF}
+end;
+
 procedure TEnvia_SMS.Button1Click(Sender: TObject);
 var
   GerenciadorSMS: JSmsManager;
 begin
-  if lblOpera.Text = '' then
+  verificaPermissao;
+  Toast('Verificando permissões...', TJToast.JavaClass.LENGTH_SHORT);
+  if Permissao then
   begin
-    ShowMessage('Não há operação cadastrada no dia de hoje - ' + formatdatetime('dd/mm/yyyy', now) + '. A mensagem não será enviada.');
-  end
-  else
-  begin
-    if (length(codigo) + Length(Emal.Text) = 13) then
+    if lblOpera.Text = '' then
     begin
-
-      if (DigitoECT(copy(Emal.Text, 1, 8)) = Copy(Emal.Text, 9, 1)) then
-      begin
-
-        GerenciadorSMS := TJSmsManager.JavaClass.getDefault;
-        GerenciadorSMS.sendTextMessage(StringToJString('28588'), nil, StringToJString(codigo + EMal.Text), nil, nil);
-        showmessage('Enviando a mensagem ' + codigo + emal.Text + ' para o número 28588...');
-        Emal.Text := '';
-        Emsg.Text := '';
-      end
-      else
-      begin
-        showmessage('Há algo errado com o dígito verificador do código a ser enviado:' + Chr(13) + (codigo + Emal.Text));
-      end;
+      ShowMessage('Não há operação cadastrada no dia de hoje - ' + formatdatetime('dd/mm/yyyy', now) + '. A mensagem não será enviada.');
     end
     else
     begin
-      showmessage('Há algo errado com a quantidade de caracteres no código a ser enviado:' + Chr(13) + (codigo + Emal.Text));
+      if (length(codigo) + Length(Emal.Text) = 13) then
+      begin
+
+        if (DigitoECT(copy(Emal.Text, 1, 8)) = Copy(Emal.Text, 9, 1)) then
+        begin
+
+          GerenciadorSMS := TJSmsManager.JavaClass.getDefault;
+          GerenciadorSMS.sendTextMessage(StringToJString('28588'), nil, StringToJString(codigo + EMal.Text), nil, nil);
+          showmessage('Enviando a mensagem ' + codigo + emal.Text + ' para o número 28588...');
+          Emal.Text := '';
+          Emsg.Text := '';
+        end
+        else
+        begin
+          showmessage('Há algo errado com o dígito verificador do código a ser enviado:' + Chr(13) + (codigo + Emal.Text));
+        end;
+      end
+      else
+      begin
+        showmessage('Há algo errado com a quantidade de caracteres no código a ser enviado:' + Chr(13) + (codigo + Emal.Text));
+      end;
     end;
+  end
+  else
+  begin
+    TDialogService.ShowMessage('Permissão para enviar SMS não concedida!');
   end;
 end;
 
