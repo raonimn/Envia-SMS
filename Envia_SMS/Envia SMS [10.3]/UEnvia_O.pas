@@ -45,7 +45,7 @@ type
   public
     var
       dia, evento, mal: boolean;
-      Permissao: Boolean;
+      Permissao: Integer;
       var
       malote, codigo: string;
     { Public declarations }
@@ -134,7 +134,7 @@ end;
 
 procedure TEnvia_SMS.verificaPermissao;
 begin
-  Permissao := false;
+  Permissao := 0;
 {$IFDEF ANDROID}
   PermissionsService.RequestPermissions([JStringToString(TJManifest_permission.JavaClass.SEND_SMS)],
     procedure(const APermissions: TArray<string>; const AGrantResults: TArray<TPermissionStatus>)
@@ -142,12 +142,11 @@ begin
       if (Length(AGrantResults) = 1) and (AGrantResults[0] = TPermissionStatus.Granted) then
           { activate or deactivate the location sensor }
       begin
-        Permissao := True
-
+        Permissao := 1;
       end
       else
       begin
-        Permissao := False;
+        Permissao := -1;
         Toast('Permissão negada!', TJToast.JavaClass.LENGTH_SHORT);
 
       end;
@@ -160,8 +159,7 @@ var
   GerenciadorSMS: JSmsManager;
 begin
   verificaPermissao;
-  Toast('Verificando permissões...', TJToast.JavaClass.LENGTH_SHORT);
-  if Permissao then
+  if Permissao = 1 then
   begin
     if lblOpera.Text = '' then
     begin
@@ -192,7 +190,7 @@ begin
       end;
     end;
   end
-  else
+  else if permissao = -1 then
   begin
     TDialogService.ShowMessage('Permissão para enviar SMS não concedida!');
   end;
